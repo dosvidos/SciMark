@@ -1,0 +1,13 @@
+*/bin/*
+
+*/obj/*
+
+Backup/*
+
+*.ncb
+
+*.suo
+
+*.userprefs
+
+*.exe
