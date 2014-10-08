@@ -10,6 +10,8 @@
 /// </license>
 
 using System;
+using System.Diagnostics;
+
 namespace SciMark2
 {
 	
@@ -23,17 +25,17 @@ namespace SciMark2
 			double[] x = RandomVector(2 * N, R);
 			//double oldx[] = NewVectorCopy(x);
 			long cycles = 1;
-			Stopwatch Q = new Stopwatch();
+			Stopwatch clock = new Stopwatch();
 			while (true)
 			{
-				Q.start();
+				clock.Start();
 				 for (int i = 0; i < cycles; i++)
 				{
 					FFT.transform(x); // forward transform
 					FFT.inverse(x); // backward transform
 				}
-				Q.stop();
-				if (Q.read() >= mintime)
+				clock.Stop();
+				if (clock.Elapsed.TotalSeconds >= mintime)
 					break;
 
 				cycles *= 2;
@@ -44,7 +46,7 @@ namespace SciMark2
 			if (FFT.test(x) / N > EPS)
 				return 0.0;
 			
-			return FFT.num_flops(N) * cycles / Q.read() * 1.0e-6;
+			return FFT.num_flops(N) * cycles / clock.Elapsed.TotalMilliseconds * 1.0e-3;
 		}
 		
 		
@@ -52,39 +54,39 @@ namespace SciMark2
 		{
 			double[][] G = RandomMatrix(N, N, R);
 			
-			Stopwatch Q = new Stopwatch();
+			Stopwatch clock = new Stopwatch();
 			int cycles = 1;
 			while (true)
 			{
-				Q.start();
+				clock.Start();
 				SOR.execute(1.25, G, cycles);
-				Q.stop();
-				if (Q.read() >= min_time)
+				clock.Stop();
+				if (clock.Elapsed.TotalSeconds >= min_time)
 					break;
 
 				cycles *= 2;
 			}
 			// approx Mflops
-			return SOR.num_flops(N, N, cycles) / Q.read() * 1.0e-6;
+			return SOR.num_flops(N, N, cycles) / clock.Elapsed.TotalMilliseconds * 1.0e-3;
 		}
 		
 		public static double measureMonteCarlo(double min_time, Random R)
 		{
-			Stopwatch Q = new Stopwatch();
+			Stopwatch clock = new Stopwatch();
 			
 			int cycles = 1;
 			while (true)
 			{
-				Q.start();
+				clock.Start();
 				MonteCarlo.integrate(cycles);
-				Q.stop();
-				if (Q.read() >= min_time)
+				clock.Stop();
+				if (clock.Elapsed.TotalSeconds >= min_time)
 					break;
 				
 				cycles *= 2;
 			}
 			// approx Mflops
-			return MonteCarlo.num_flops(cycles) / Q.read() * 1.0e-6;
+			return MonteCarlo.num_flops(cycles) / clock.Elapsed.TotalMilliseconds * 1.0e-3;
 		}
 		
 		
@@ -143,21 +145,21 @@ namespace SciMark2
 				
 			}
 			
-			Stopwatch Q = new Stopwatch();
+			Stopwatch clock = new Stopwatch();
 			
 			int cycles = 1;
 			while (true)
 			{
-				Q.start();
+				clock.Start();
 				SparseCompRow.matmult(y, val, row, col, x, cycles);
-				Q.stop();
-				if (Q.read() >= min_time)
+				clock.Stop();
+				if (clock.Elapsed.TotalSeconds >= min_time)
 					break;
 				
 				cycles *= 2;
 			}
 			// approx Mflops
-			return SparseCompRow.num_flops(N, nz, cycles) / Q.read() * 1.0e-6;
+			return SparseCompRow.num_flops(N, nz, cycles) / clock.Elapsed.TotalMilliseconds * 1.0e-3;
 		}
 		
 		
@@ -172,24 +174,37 @@ namespace SciMark2
 				lu[i] = new double[N];
 			}
 			int[] pivot = new int[N];
-			
-			Stopwatch Q = new Stopwatch();
+
+			Stopwatch clock = new Stopwatch();
+			Stopwatch watch = new Stopwatch();
 			
 			int cycles = 1;
+			long copyTime = 0;
+			long factorTime = 0;
 			while (true)
 			{
-				Q.start();
-				 for (int i = 0; i < cycles; i++)
+				clock.Start();
+				for (int i = 0; i < cycles; i++)
 				{
+					watch.Start();
 					CopyMatrix(lu, A);
+					watch.Stop();
+					copyTime += watch.ElapsedMilliseconds;
+					watch.Reset();
+					watch.Start();
 					LU.factor(lu, pivot);
+					watch.Stop();
+					factorTime += watch.ElapsedMilliseconds;
+					watch.Reset();
 				}
-				Q.stop();
-				if (Q.read() >= min_time)
+				clock.Stop();
+				if (clock.Elapsed.TotalSeconds >= min_time)
 					break;
 				
 				cycles *= 2;
 			}
+
+			Console.WriteLine("Time spent in measureLU:\nCopyMatrix: {0} ms\nLU.factor: {1} ms\ncycles: {2}", copyTime, factorTime, cycles);
 			
 			
 			// verify that LU is correct
@@ -205,7 +220,7 @@ namespace SciMark2
 			
 			// else return approx Mflops
 			//
-			return LU.num_flops(N) * cycles / Q.read() * 1.0e-6;
+			return LU.num_flops(N) * cycles / clock.Elapsed.TotalMilliseconds * 1.0e-3;
 		}
 		
 		
